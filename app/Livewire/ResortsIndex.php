@@ -47,7 +47,7 @@ class ResortsIndex extends Component
                 // name + shortcode are declared columns; slug/address are searched as raw DB
                 // columns via the dot-qualified form (undeclared bare names are rejected —
                 // the whitelist that keeps the search surface injection-closed).
-                ->searchable(['name', 'shortcode', 'resorts.slug', 'resorts.address'])
+                ->searchable(['name', 'resorts.slug'])
                 ->filters([
                     SelectFilter::make('type')->label('Type')
                         ->options(fn() => Resort::query()
@@ -62,8 +62,6 @@ class ResortsIndex extends Component
                     IntegerColumn::make('id')->label('ID')->sortable()->width(70),
                     TextColumn::make('name')->label('Resort')->sortable()->searchable()->grow(),
                     TextColumn::make('type')->label('Type')->sortable()->width(120),
-                    TextColumn::make('shortcode')->label('Code')->searchable()->width(110),
-                    TextColumn::make('rating')->label('Rating')->align('right')->sortable()->width(80),
                     IntegerColumn::make('comparison_tariff')->label('Tariff')->sortable()->width(100),
                     IntegerColumn::make('hits')->label('Hits')->sortable()->width(90),
                     ComputedColumn::make('status')->label('Status')->html()->width(90)

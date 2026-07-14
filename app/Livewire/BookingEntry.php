@@ -69,6 +69,7 @@ class BookingEntry extends Component
                 ->columns([
                     SerialColumn::make(),
                     SearchSelectColumn::make('resort_id')->label('Resort')
+                        ->endOfListOption(allowOnEmpty: true)
                         ->optionsUsing(fn(string $term): array => Resort::query()
                             ->where('visibility', 'show')
                             ->when($term !== '', fn($q) => $q->where('name', 'like', "%{$term}%"))
