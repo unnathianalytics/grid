@@ -8,3 +8,4 @@ Route::get('/', function () {
 });
 
 Route::get('/resorts', ResortsIndex::class);
+Route::get('/booking', App\Livewire\BookingEntry::class);

@@ -39,10 +39,10 @@ class ResortsIndex extends Component
     {
         return [
             'resorts' => Grid::make('resorts')
-                ->query(fn () => Resort::query())
+                ->query(fn() => Resort::query())
                 // Demo app has no auth/policies — permit openly. Gate with a policy in real apps.
-                ->authorize(fn (): bool => true)
-                ->paginate(25, [10, 25, 50, 100])
+                ->authorize(fn(): bool => true)
+                ->paginate(10, [10, 25, 50, 100])
                 ->defaultSort('name')
                 // name + shortcode are declared columns; slug/address are searched as raw DB
                 // columns via the dot-qualified form (undeclared bare names are rejected —
@@ -50,7 +50,7 @@ class ResortsIndex extends Component
                 ->searchable(['name', 'shortcode', 'resorts.slug', 'resorts.address'])
                 ->filters([
                     SelectFilter::make('type')->label('Type')
-                        ->options(fn () => Resort::query()
+                        ->options(fn() => Resort::query()
                             ->whereNotNull('type')
                             ->distinct()->orderBy('type')
                             ->pluck('type', 'type')),
@@ -67,7 +67,7 @@ class ResortsIndex extends Component
                     IntegerColumn::make('comparison_tariff')->label('Tariff')->sortable()->width(100),
                     IntegerColumn::make('hits')->label('Hits')->sortable()->width(90),
                     ComputedColumn::make('status')->label('Status')->html()->width(90)
-                        ->state(fn (array $row): string => ($row['visibility'] ?? 'show') === 'show'
+                        ->state(fn(array $row): string => ($row['visibility'] ?? 'show') === 'show'
                             ? CellHtml::badge('green', 'Show')
                             : CellHtml::badge('zinc', 'Hide')),
                     DateColumn::make('created_at')->label('Added')->sortable()->width(110),
@@ -86,7 +86,7 @@ class ResortsIndex extends Component
                 ->bulkActions([
                     Action::make('hide-selected')->label('Hide')->icon('🙈')
                         ->confirm('Hide all selected resorts?')
-                        ->call(fn (array $keys) => Resort::whereKey($keys)->update(['visibility' => 'hide'])),
+                        ->call(fn(array $keys) => Resort::whereKey($keys)->update(['visibility' => 'hide'])),
                 ])
                 ->stickyHeader()
                 ->striped()
