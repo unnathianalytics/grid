@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $title ?? 'Travelchords' }}</title>
+    <title>{{ $title ?? 'LaraGrid' }}</title>
     {{-- No @vite needed: Livewire and LaraGrid both auto-inject their own assets. --}}
     <style>
         body { font-family: system-ui, 'Segoe UI', Arial, sans-serif; margin: 0; background: #fafafa; color: #18181b; }
@@ -20,7 +20,7 @@
 <body>
     <nav class="app-nav">
         <div class="inner">
-            <span class="brand">Travelchords</span>
+            <span class="brand">LaraGrid</span>
             <a href="/resorts" @class(['active' => request()->is('resorts')])>Resorts</a>
             <a href="/booking" @class(['active' => request()->is('booking')])>Booking Entry</a>
         </div>

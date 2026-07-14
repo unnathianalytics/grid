@@ -20,7 +20,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 /**
- * All resorts — server-side readonly LaraGrid over the travelchords resorts table.
+ * All resorts — server-side readonly LaraGrid over the resorts table.
  *
  * Showcases: whitelisted sort/search, toolbar filters (type, visibility), footer sum,
  * a badge via an ->html() computed column, a row call-action (visibility toggle) and a
