@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class Resort extends Model
 {
-    //
+    protected $guarded = [];
 }
