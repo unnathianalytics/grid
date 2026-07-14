@@ -5915,16 +5915,16 @@
         },
         {
             "name": "unnathianalytics/laragrid",
-            "version": "v0.1.10",
+            "version": "v0.1.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/unnathianalytics/laragrid.git",
-                "reference": "4da0d24727599c4857bfb63682283f1f998bb2f9"
+                "reference": "d71c1c993a59f8d6e20f83d3669c2b8b495c1984"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/unnathianalytics/laragrid/zipball/4da0d24727599c4857bfb63682283f1f998bb2f9",
-                "reference": "4da0d24727599c4857bfb63682283f1f998bb2f9",
+                "url": "https://api.github.com/repos/unnathianalytics/laragrid/zipball/d71c1c993a59f8d6e20f83d3669c2b8b495c1984",
+                "reference": "d71c1c993a59f8d6e20f83d3669c2b8b495c1984",
                 "shasum": ""
             },
             "require": {
@@ -5979,9 +5979,9 @@
             ],
             "support": {
                 "issues": "https://github.com/unnathianalytics/laragrid/issues",
-                "source": "https://github.com/unnathianalytics/laragrid/tree/v0.1.10"
+                "source": "https://github.com/unnathianalytics/laragrid/tree/v0.1.11"
             },
-            "time": "2026-07-14T13:34:59+00:00"
+            "time": "2026-07-14T13:53:50+00:00"
         },
         {
             "name": "vlucas/phpdotenv",
