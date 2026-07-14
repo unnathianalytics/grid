@@ -4,7 +4,9 @@ namespace App\Livewire;
 
 use App\Models\Resort;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Carbon;
 use LaraGrid\Aggregate;
+use LaraGrid\Columns\DateColumn;
 use LaraGrid\Columns\DecimalColumn;
 use LaraGrid\Columns\FormulaColumn;
 use LaraGrid\Columns\IntegerColumn;
@@ -56,9 +58,9 @@ class BookingEntry extends Component
                 ->editable()
                 ->rowsFrom('lines')
                 // Demo app has no auth — permit openly. Gate with a policy in real apps.
-                ->authorize(fn (): bool => true)
+                ->authorize(fn(): bool => true)
                 ->defaultRows(3)
-                ->newRowUsing(fn (): array => ['nights' => 1])
+                ->newRowUsing(fn(): array => ['nights' => 1])
                 ->minRows(1)
                 ->autoAppend()
                 ->padRows(4)
@@ -67,13 +69,13 @@ class BookingEntry extends Component
                 ->columns([
                     SerialColumn::make(),
                     SearchSelectColumn::make('resort_id')->label('Resort')
-                        ->optionsUsing(fn (string $term): array => Resort::query()
+                        ->optionsUsing(fn(string $term): array => Resort::query()
                             ->where('visibility', 'show')
-                            ->when($term !== '', fn ($q) => $q->where('name', 'like', "%{$term}%"))
+                            ->when($term !== '', fn($q) => $q->where('name', 'like', "%{$term}%"))
                             ->orderBy('name')
                             ->limit(50)
                             ->get(['id', 'name'])
-                            ->map(fn (Resort $resort): array => [
+                            ->map(fn(Resort $resort): array => [
                                 'value' => (string) $resort->id,
                                 'label' => $resort->name,
                             ])
@@ -94,6 +96,8 @@ class BookingEntry extends Component
                         ->required()
                         ->minChars(0)->debounce(250)->limit(50)
                         ->grow(),
+                    DateColumn::make('fromDate')->label('From'),
+                    DateColumn::make('toDate')->label('To'),
                     IntegerColumn::make('nights')->label('Nights')
                         ->rules(['integer', 'min:1', 'max:60'])
                         ->required()
@@ -109,6 +113,31 @@ class BookingEntry extends Component
                 ->footer([
                     Aggregate::sum('amount')->format('number', ['scale' => 2]),
                 ])
+                // Derived nights: whenever From or To changes (typing, paste, fill-down),
+                // recompute nights = date difference. The hook runs server-side after the
+                // cell is applied; its write-back patches the client row, and the amount
+                // FORMULA recomputes AFTER the hook in the same op — so one date commit
+                // updates Nights and Amount together in a single round trip. Nights stays
+                // editable, so the operator can still override the computed value.
+                ->afterCellChange(function (RowContext $row, string $column): void {
+                    if (! in_array($column, ['fromDate', 'toDate'], true)) {
+                        return;
+                    }
+
+                    $from = $row->get('fromDate');
+                    $to = $row->get('toDate');
+
+                    if (! $from || ! $to) {
+                        return; // one side still blank — nothing to derive yet
+                    }
+
+                    $nights = (int) Carbon::parse($from)->startOfDay()
+                        ->diffInDays(Carbon::parse($to)->startOfDay(), false);
+
+                    // A reversed range derives nothing — clear nights so the required/min
+                    // validation flags the row instead of silently keeping a stale count.
+                    $row->set('nights', $nights >= 1 ? $nights : null);
+                })
                 ->stickyHeader()
                 ->maxHeight('55vh')
                 ->emptyState('No booking lines yet.'),
