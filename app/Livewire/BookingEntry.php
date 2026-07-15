@@ -13,6 +13,7 @@ use LaraGrid\Columns\IntegerColumn;
 use LaraGrid\Columns\SearchSelectColumn;
 use LaraGrid\Columns\SerialColumn;
 use LaraGrid\Columns\TextColumn;
+use LaraGrid\Columns\YesNoColumn;
 use LaraGrid\Editing\RowContext;
 use LaraGrid\Grid;
 use LaraGrid\Livewire\WithLaraGrid;
@@ -60,7 +61,7 @@ class BookingEntry extends Component
                 // Demo app has no auth — permit openly. Gate with a policy in real apps.
                 ->authorize(fn(): bool => true)
                 ->defaultRows(3)
-                ->newRowUsing(fn(): array => ['nights' => 1])
+                //->newRowUsing(fn(): array => ['nights' => 1])
                 ->minRows(1)
                 ->autoAppend()
                 ->padRows(4)
@@ -103,6 +104,7 @@ class BookingEntry extends Component
                         ->rules(['integer', 'min:1', 'max:60'])
                         ->required()
                         ->width(90),
+                    YesNoColumn::make('taxable')->label('Taxable?'),
                     DecimalColumn::make('rate')->label('Rate / night')->scale(2)
                         ->rules(['numeric', 'min:0'])
                         ->width(120),

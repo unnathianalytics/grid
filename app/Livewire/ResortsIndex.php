@@ -11,6 +11,7 @@ use LaraGrid\Columns\DateColumn;
 use LaraGrid\Columns\IntegerColumn;
 use LaraGrid\Columns\SerialColumn;
 use LaraGrid\Columns\TextColumn;
+use LaraGrid\Columns\YesNoColumn;
 use LaraGrid\Filters\SelectFilter;
 use LaraGrid\Grid;
 use LaraGrid\Livewire\WithLaraGrid;
@@ -39,7 +40,11 @@ class ResortsIndex extends Component
     {
         return [
             'resorts' => Grid::make('resorts')
-                ->query(fn() => Resort::query())
+                // is_visible: a derived 1/0 the YesNoColumn below paints as Y/N — typed value
+                // columns read a real row value, so derivations belong in the query (unlike
+                // ComputedColumn, whose ->state() bakes values row-by-row after the query).
+                ->query(fn() => Resort::query()
+                    ->selectRaw("resorts.*, (COALESCE(visibility, 'show') = 'show') as is_visible"))
                 // Demo app has no auth/policies — permit openly. Gate with a policy in real apps.
                 ->authorize(fn(): bool => true)
                 ->paginate(10, [10, 25, 50, 100])
@@ -62,6 +67,7 @@ class ResortsIndex extends Component
                     IntegerColumn::make('id')->label('ID')->sortable()->width(70),
                     TextColumn::make('name')->label('Resort')->sortable()->searchable()->grow(),
                     TextColumn::make('type')->label('Type')->sortable()->width(120),
+                    YesNoColumn::make('is_visible')->label('Status Y/N')->width(90),
                     IntegerColumn::make('comparison_tariff')->label('Tariff')->sortable()->width(100),
                     IntegerColumn::make('hits')->label('Hits')->sortable()->width(90),
                     ComputedColumn::make('status')->label('Status')->html()->width(90)
