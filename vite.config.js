@@ -11,6 +11,10 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    build: {
+        // Forces Vite to empty the public/build directory on every run
+        emptyOutDir: true,
+    },
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],

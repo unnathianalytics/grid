@@ -17,8 +17,14 @@
         <span style="color:#71717a;font-size:.85rem">Save captures the cleaned rows below and reseeds the grid.</span>
     </div>
 
-    @if ($saved !== [])
-        <h2 style="font-size:1rem;margin-top:1.5rem">Saved payload (gridRows() output)</h2>
-        <pre style="background:#18181b;color:#e4e4e7;padding:1rem;border-radius:.5rem;font-size:.8rem;overflow:auto">{{ json_encode($saved, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
-    @endif
+    <x-source-code title="Booking Entry source" panel="Saved payload" :files="[
+        'app/Livewire/BookingEntry.php',
+        'resources/views/livewire/booking-entry.blade.php',
+    ]">
+        @if ($saved !== [])
+            <pre>{{ json_encode($saved, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+        @else
+            <p>Fill a line and hit Save — the cleaned gridRows() output lands here.</p>
+        @endif
+    </x-source-code>
 </div>

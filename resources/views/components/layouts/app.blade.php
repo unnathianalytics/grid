@@ -16,6 +16,7 @@
         nav.app-nav a:hover { color: #fff; }
         nav.app-nav a.active { color: #fff; box-shadow: inset 0 -2px 0 #fff; }
     </style>
+    @stack('styles')
 </head>
 <body>
     <nav class="app-nav">
@@ -28,5 +29,6 @@
     <main>
         {{ $slot }}
     </main>
+    @stack('scripts')
 </body>
 </html>
