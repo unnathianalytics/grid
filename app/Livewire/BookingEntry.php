@@ -67,6 +67,7 @@ class BookingEntry extends Component
                 ->padRows(4)
                 ->focusOnMount()
                 ->focusOutTo('[data-save]')
+                ->onCompleteFocus('[data-save]')
                 ->columns([
                     SerialColumn::make(),
                     SearchSelectColumn::make('resort_id')->label('Resort')
