@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "840508870e7684ba153972d34f98fc0f",
+    "content-hash": "463965dbaf403668f8d69a84f779a225",
     "packages": [
         {
             "name": "brick/math",
@@ -5918,16 +5918,16 @@
         },
         {
             "name": "unnathianalytics/laragrid",
-            "version": "v0.1.16",
+            "version": "v1.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/unnathianalytics/laragrid.git",
-                "reference": "90a624685ec543511a08ff6b190865fad5d150d4"
+                "reference": "7ba58737575e26cae13cbc5802b0d885da7c6e28"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/unnathianalytics/laragrid/zipball/90a624685ec543511a08ff6b190865fad5d150d4",
-                "reference": "90a624685ec543511a08ff6b190865fad5d150d4",
+                "url": "https://api.github.com/repos/unnathianalytics/laragrid/zipball/7ba58737575e26cae13cbc5802b0d885da7c6e28",
+                "reference": "7ba58737575e26cae13cbc5802b0d885da7c6e28",
                 "shasum": ""
             },
             "require": {
@@ -5982,9 +5982,9 @@
             ],
             "support": {
                 "issues": "https://github.com/unnathianalytics/laragrid/issues",
-                "source": "https://github.com/unnathianalytics/laragrid/tree/v0.1.16"
+                "source": "https://github.com/unnathianalytics/laragrid/tree/v1.0.0"
             },
-            "time": "2026-07-16T05:49:50+00:00"
+            "time": "2026-07-16T08:02:59+00:00"
         },
         {
             "name": "vlucas/phpdotenv",
