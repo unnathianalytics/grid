@@ -76,6 +76,7 @@ class ResortsIndex extends Component
                             : CellHtml::badge('zinc', 'Hide')),
                     DateColumn::make('created_at')->label('Added')->sortable()->width(110),
                 ])
+                ->exportable()
                 ->footer([
                     Aggregate::sum('hits')->format('number'),
                 ])
