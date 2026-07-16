@@ -48,6 +48,7 @@ class ResortsIndex extends Component
                 // Demo app has no auth/policies — permit openly. Gate with a policy in real apps.
                 ->authorize(fn(): bool => true)
                 ->paginate(10, [10, 25, 50, 100])
+                ->savedViews()
                 ->defaultSort('name')
                 // name + shortcode are declared columns; slug/address are searched as raw DB
                 // columns via the dot-qualified form (undeclared bare names are rejected —
