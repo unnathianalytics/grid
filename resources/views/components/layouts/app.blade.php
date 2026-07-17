@@ -24,6 +24,7 @@
             <span class="brand">LaraGrid</span>
             <a href="/resorts" @class(['active' => request()->is('resorts')])>Resorts</a>
             <a href="/booking" @class(['active' => request()->is('booking')])>Booking Entry</a>
+            <a href="/resorts/create" @class(['active' => request()->is('resorts/create') || request()->is('resorts/*/edit')])>New Resort (LaraForm)</a>
         </div>
     </nav>
     <main>
