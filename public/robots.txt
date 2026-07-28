@@ -1,2 +1,7 @@
 User-agent: *
-Disallow:
+Allow: /
+
+# The JSON endpoint behind the LaraForm city picker — no content to index.
+Disallow: /api/
+
+Sitemap: https://grid.laravel.cloud/sitemap.xml

@@ -1,6 +1,4 @@
 <x-layouts.app>
-    <x-slot:title>{{ $heading }} — LaraForm</x-slot:title>
-
     @push('styles')
         <style>
             .page-intro { color: #52525b; font-size: .9rem; margin: 0 0 1.25rem; max-width: 60ch; }

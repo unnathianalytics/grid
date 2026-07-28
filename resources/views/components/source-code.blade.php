@@ -83,47 +83,103 @@
 @once
     @push('styles')
         <style>
-            .src { margin: 1.5rem 0 0; border: 1px solid #27272a; border-radius: .5rem; background: #18181b; overflow: hidden; }
-            .src-bar { display: flex; align-items: stretch; background: #101012; border-bottom: 1px solid #27272a; }
+            /* Every surface and token is a variable, so the dark override below is a short
+               list of re-assignments rather than a second copy of the component. The light
+               palette is not the dark one lightened: syntax hues are re-picked at 600-700
+               weight, which is where they stay legible on a white background. */
+            .src {
+                --src-bg: #fff;
+                --src-bar-bg: #f4f4f5;
+                --src-border: #e4e4e7;
+                --src-text: #27272a;
+                --src-muted: #71717a;
+                --src-gutter: #a1a1aa;
+                --src-accent: #18181b;
+                --src-selection: #dbeafe;
+
+                --tok-comment: #6b7280;
+                --tok-kw:      #be185d;
+                --tok-blade:   #b91c1c;
+                --tok-str:     #15803d;
+                --tok-num:     #c2410c;
+                --tok-var:     #0369a1;
+                --tok-class:   #854d0e;
+                --tok-type:    #0f766e;
+                --tok-fn:      #1d4ed8;
+                --tok-arg:     #7e22ce;
+                --tok-attr:    #a21caf;
+                --tok-punct:   #71717a;
+            }
+
+            html.dark .src {
+                --src-bg: #18181b;
+                --src-bar-bg: #101012;
+                --src-border: #27272a;
+                --src-text: #e4e4e7;
+                --src-muted: #a1a1aa;
+                --src-gutter: #52525b;
+                --src-accent: #fff;
+                --src-selection: #1e3a8a;
+
+                --tok-comment: #8b8b96;
+                --tok-kw:      #f472b6;
+                --tok-blade:   #fb7185;
+                --tok-str:     #86efac;
+                --tok-num:     #fdba74;
+                --tok-var:     #7dd3fc;
+                --tok-class:   #fcd34d;
+                --tok-type:    #5eead4;
+                --tok-fn:      #93c5fd;
+                --tok-arg:     #d8b4fe;
+                --tok-attr:    #f0abfc;
+                --tok-punct:   #a1a1aa;
+            }
+
+            .src { margin: 1.5rem 0 0; border: 1px solid var(--src-border); border-radius: .5rem; background: var(--src-bg); overflow: hidden; }
+            .src-bar { display: flex; align-items: stretch; background: var(--src-bar-bg); border-bottom: 1px solid var(--src-border); }
             .src-tabs { display: flex; }
             .src-tab, .src-name { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .78rem; }
-            .src-tab { padding: .55rem .95rem; border: 0; border-bottom: 2px solid transparent; background: none; color: #a1a1aa; cursor: pointer; }
-            .src-tab:hover { color: #e4e4e7; }
-            .src-tab[aria-selected="true"] { background: #18181b; border-bottom-color: #e4e4e7; color: #fff; }
-            .src-tab:focus-visible, .src-copy:focus-visible, .src-panel:focus-visible { outline: 2px solid #60a5fa; outline-offset: -2px; }
-            .src-name { display: flex; align-items: center; padding: .55rem .95rem; color: #e4e4e7; }
-            .src-copy { margin: 0 .5rem 0 auto; align-self: center; font: inherit; font-size: .7rem; padding: .25rem .6rem; border: 1px solid #3f3f46; border-radius: .3rem; background: none; color: #a1a1aa; cursor: pointer; }
-            .src-copy:hover { border-color: #52525b; color: #fff; }
+            .src-tab { padding: .55rem .95rem; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--src-muted); cursor: pointer; }
+            .src-tab:hover { color: var(--src-text); }
+            .src-tab[aria-selected="true"] { background: var(--src-bg); border-bottom-color: var(--src-accent); color: var(--src-accent); }
+            .src-tab:focus-visible, .src-copy:focus-visible, .src-panel:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
+            .src-name { display: flex; align-items: center; padding: .55rem .95rem; color: var(--src-text); }
+            .src-copy { margin: 0 .5rem 0 auto; align-self: center; font: inherit; font-size: .7rem; padding: .25rem .6rem; border: 1px solid var(--src-border); border-radius: .3rem; background: var(--src-bg); color: var(--src-muted); cursor: pointer; }
+            .src-copy:hover { border-color: var(--src-gutter); color: var(--src-text); }
             .src-panel[hidden] { display: none; }
             .src-body { display: flex; max-height: 26rem; overflow: auto; }
             .src-lines, .src-code { margin: 0; padding: .9rem 0; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .78rem; line-height: 1.55; }
             /* Sticky so the gutter holds its ground while the code scrolls sideways under it. */
-            .src-lines { position: sticky; left: 0; z-index: 1; flex: none; padding-inline: .85rem .7rem; border-right: 1px solid #27272a; background: #18181b; color: #52525b; text-align: right; user-select: none; }
-            .src-code { flex: 1; padding-inline: 1rem; color: #e4e4e7; white-space: pre; }
+            .src-lines { position: sticky; left: 0; z-index: 1; flex: none; padding-inline: .85rem .7rem; border-right: 1px solid var(--src-border); background: var(--src-bg); color: var(--src-gutter); text-align: right; user-select: none; }
+            .src-code { flex: 1; padding-inline: 1rem; color: var(--src-text); white-space: pre; }
             .src-code code { font: inherit; }
-            .src-path { padding: .4rem .95rem; border-top: 1px solid #27272a; background: #101012; color: #52525b; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .68rem; }
+            /* The Copy fallback selects the whole panel (see the script below), so the
+               selection colour is not an edge case here — it is what you look at while the
+               hint says "Press Ctrl+C". Pin both halves rather than inherit the UA's. */
+            .src-code ::selection, .src-slot ::selection { background: var(--src-selection); color: var(--src-text); }
+            .src-path { padding: .4rem .95rem; border-top: 1px solid var(--src-border); background: var(--src-bar-bg); color: var(--src-gutter); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .68rem; }
             /* The slot panel earns the same body treatment as a file panel, so switching
                tabs does not change the shape of the card underneath you. */
-            .src-slot { max-height: 26rem; padding: .9rem 1rem; overflow: auto; color: #e4e4e7; }
+            .src-slot { max-height: 26rem; padding: .9rem 1rem; overflow: auto; color: var(--src-text); }
             .src-slot pre { margin: 0; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .78rem; line-height: 1.55; white-space: pre; }
-            .src-slot p { margin: 0; color: #71717a; font-size: .8rem; }
+            .src-slot p { margin: 0; color: var(--src-muted); font-size: .8rem; }
 
-            .src-code .tok-comment { color: #8b8b96; font-style: italic; }
-            .src-code .tok-kw      { color: #f472b6; }
-            .src-code .tok-tag     { color: #f472b6; }
-            .src-code .tok-blade   { color: #fb7185; }
-            .src-code .tok-str     { color: #86efac; }
+            .src-code .tok-comment { color: var(--tok-comment); font-style: italic; }
+            .src-code .tok-kw,
+            .src-code .tok-tag     { color: var(--tok-kw); }
+            .src-code .tok-blade   { color: var(--tok-blade); }
+            .src-code .tok-str     { color: var(--tok-str); }
             .src-code .tok-num,
-            .src-code .tok-const   { color: #fdba74; }
-            .src-code .tok-var     { color: #7dd3fc; }
-            .src-code .tok-class   { color: #fcd34d; }
-            .src-code .tok-type    { color: #5eead4; }
-            .src-code .tok-fn      { color: #93c5fd; }
-            .src-code .tok-arg     { color: #d8b4fe; }
-            .src-code .tok-attr    { color: #f0abfc; }
+            .src-code .tok-const   { color: var(--tok-num); }
+            .src-code .tok-var     { color: var(--tok-var); }
+            .src-code .tok-class   { color: var(--tok-class); }
+            .src-code .tok-type    { color: var(--tok-type); }
+            .src-code .tok-fn      { color: var(--tok-fn); }
+            .src-code .tok-arg     { color: var(--tok-arg); }
+            .src-code .tok-attr    { color: var(--tok-attr); }
             .src-code .tok-prop,
-            .src-code .tok-html    { color: #e4e4e7; }
-            .src-code .tok-punct   { color: #a1a1aa; }
+            .src-code .tok-html    { color: var(--src-text); }
+            .src-code .tok-punct   { color: var(--tok-punct); }
         </style>
     @endpush
 

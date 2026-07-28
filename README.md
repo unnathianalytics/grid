@@ -1,58 +1,54 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# LaraGrid demo — grid.laravel.cloud
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+The live demo site for **[LaraGrid](https://github.com/unnathianalytics/laragrid)**, an
+Excel-style, keyboard-first datagrid for **Laravel + Livewire**, and its companion form
+package **LaraForm**.
 
-## About Laravel
+Every page here is a working component, not a screenshot: the same 500-row table drives a
+readonly server-side register, two editable entry grids, a display-only report page, and a
+theming gallery. Each page ships its own source viewer, so what you read is what is running.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+**Live → [grid.laravel.cloud](https://grid.laravel.cloud/)**
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## The pages
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| Route | Mode | What it exercises |
+|---|---|---|
+| `/` | display | Overview, install, the three modes, the keyboard reference, FAQs, and a live teaser grid |
+| `/resorts` | readonly, server-side | `query()`, `authorize()`, `paginate()`, `singlePageUpTo()`, `searchable()`, toolbar `filters()` + column `filterable()` funnels, `exportable()` (CSV/XLSX/PDF), `savedViews()`, `rowActivate()`, row / bulk / toolbar actions, grouped headers, frozen columns, `rowClass()` / `cellClass()`, `persistWidths()` |
+| `/booking` | editable | Async picker with `onSelect()` enrichment, chained formula columns, `rules()` / `required(fn)` / `readonly(fn)` / `requiredWhen()` / `lockedWhen()` / `whenFilled()`, `afterCellChange()` / `afterRowRemove()`, `autoAppend()`, `endOfListOption()`, `opensPanel()` + `gridPanelDone()`, `refreshesHost()`, `focusOutTo()` vs `onCompleteFocus()` |
+| `/journal` | editable | `completeWhenBalanced()` with balancing autofill, a mutually exclusive Dr/Cr pair, `SyncPolicy::PerRow`, an `optionsUsing()` picker over a plain PHP array |
+| `/reports` | display | In-memory rows on a plain Blade page (no Livewire), client-side sorting, <kbd>F9</kbd> what-if row hiding, `toolbar(false)`, and the extension seams — a custom column type, painter, format and parse kind |
+| `/themes` | display | All six shipped color schemes, a custom two-token scheme, three densities, dark mode, and the `--lgrid-*` token surface |
+| `/resorts/create` | — | The LaraForm demo: every field type on one keyboard-drivable form |
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Running it locally
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer setup          # install, key, migrate, npm install, npm run build
+php artisan db:seed --class=ResortDemoSeeder   # backfill the demo-only columns
+composer dev            # serve + queue + logs + vite
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+The database is SQLite (`database/database.sqlite`), committed with the resorts table already
+populated. `ResortDemoSeeder` fills the columns the grid demos paint (city, star rating, rooms,
+rack rate, manager, contact details, opening dates) deterministically from each row's id, so
+re-running it is idempotent.
 
-## Contributing
+## How the demo is put together
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- **`app/Livewire/*`** — the three Livewire grid pages. Each grid is one chained `Grid::make()`
+  expression; there is no Blade wiring and no page JavaScript.
+- **`app/Http/Controllers/{Home,Reports,Themes}Controller.php`** — the display-mode pages,
+  which need no Livewire component at all.
+- **`app/Grid/*`** — this app's LaraGrid extensions: a custom `RatingColumn`, an `inr` display
+  format and a `stars` parse kind, registered in `AppServiceProvider` with their JavaScript
+  twins in `resources/views/partials/laragrid-extensions.blade.php`.
+- **`app/Support/Seo.php`** — the per-page SEO registry (title, description, keywords,
+  canonical, Open Graph / Twitter cards, JSON-LD) the layout reads for every page, Livewire and
+  controller alike. `/sitemap.xml` and `/robots.txt` are generated from the same table.
+- **`resources/views/components/source-code.blade.php`** — the on-page source viewer.
 
-## Code of Conduct
+## Licence
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT. LaraGrid and LaraForm are © Unnathi Analytics.
