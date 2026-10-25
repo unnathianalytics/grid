@@ -138,7 +138,7 @@
             .src { margin: 1.5rem 0 0; border: 1px solid var(--src-border); border-radius: .5rem; background: var(--src-bg); overflow: hidden; }
             .src-bar { display: flex; align-items: stretch; background: var(--src-bar-bg); border-bottom: 1px solid var(--src-border); }
             .src-tabs { display: flex; }
-            .src-tab, .src-name { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .78rem; }
+            .src-tab, .src-name { font-family: var(--font-mono); font-size: .78rem; }
             .src-tab { padding: .55rem .95rem; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--src-muted); cursor: pointer; }
             .src-tab:hover { color: var(--src-text); }
             .src-tab[aria-selected="true"] { background: var(--src-bg); border-bottom-color: var(--src-accent); color: var(--src-accent); }
@@ -148,7 +148,7 @@
             .src-copy:hover { border-color: var(--src-gutter); color: var(--src-text); }
             .src-panel[hidden] { display: none; }
             .src-body { display: flex; max-height: 26rem; overflow: auto; }
-            .src-lines, .src-code { margin: 0; padding: .9rem 0; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .78rem; line-height: 1.55; }
+            .src-lines, .src-code { margin: 0; padding: .9rem 0; font-family: var(--font-mono); font-size: .78rem; line-height: 1.55; }
             /* Sticky so the gutter holds its ground while the code scrolls sideways under it. */
             .src-lines { position: sticky; left: 0; z-index: 1; flex: none; padding-inline: .85rem .7rem; border-right: 1px solid var(--src-border); background: var(--src-bg); color: var(--src-gutter); text-align: right; user-select: none; }
             .src-code { flex: 1; padding-inline: 1rem; color: var(--src-text); white-space: pre; }
@@ -157,11 +157,11 @@
                selection colour is not an edge case here — it is what you look at while the
                hint says "Press Ctrl+C". Pin both halves rather than inherit the UA's. */
             .src-code ::selection, .src-slot ::selection { background: var(--src-selection); color: var(--src-text); }
-            .src-path { padding: .4rem .95rem; border-top: 1px solid var(--src-border); background: var(--src-bar-bg); color: var(--src-gutter); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .68rem; }
+            .src-path { padding: .4rem .95rem; border-top: 1px solid var(--src-border); background: var(--src-bar-bg); color: var(--src-gutter); font-family: var(--font-mono); font-size: .68rem; }
             /* The slot panel earns the same body treatment as a file panel, so switching
                tabs does not change the shape of the card underneath you. */
             .src-slot { max-height: 26rem; padding: .9rem 1rem; overflow: auto; color: var(--src-text); }
-            .src-slot pre { margin: 0; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .78rem; line-height: 1.55; white-space: pre; }
+            .src-slot pre { margin: 0; font-family: var(--font-mono); font-size: .78rem; line-height: 1.55; white-space: pre; }
             .src-slot p { margin: 0; color: var(--src-muted); font-size: .8rem; }
 
             .src-code .tok-comment { color: var(--tok-comment); font-style: italic; }

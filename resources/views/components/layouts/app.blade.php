@@ -37,6 +37,13 @@
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="sitemap" type="application/xml" href="{{ url('/sitemap.xml') }}">
 
+    {{-- Typography: JetBrains Mono for everything — body copy, code, the grids and the forms.
+         LaraGrid sets no font of its own and LaraForm's --lf-font is `inherit`, so the one
+         --font-mono token below reaches every surface on the site. --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&amp;display=swap" rel="stylesheet">
+
     {{-- Open Graph --}}
     <meta property="og:type" content="{{ $seo->type }}">
     <meta property="og:site_name" content="{{ Seo::SITE }}">
@@ -63,10 +70,12 @@
 
     {{-- No @vite needed: Livewire and LaraGrid both auto-inject their own assets. --}}
     <style>
-        :root { color-scheme: light; }
+        :root { color-scheme: light; --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace; }
         html.dark { color-scheme: dark; }
         * { box-sizing: border-box; }
-        body { font-family: system-ui, 'Segoe UI', Arial, sans-serif; margin: 0; background: #fafafa; color: #18181b; line-height: 1.55; }
+        body { font-family: var(--font-mono); margin: 0; background: #fafafa; color: #18181b; line-height: 1.55; }
+        /* Form controls do not inherit the page font by default; make them. */
+        button, input, select, textarea { font-family: inherit; }
         html.dark body { background: #09090b; color: #e4e4e7; }
         main { max-width: 1200px; margin: 2rem auto 3rem; padding: 0 1.25rem; }
         main.wide { max-width: 1360px; }
@@ -76,14 +85,14 @@
         p { margin: 0 0 .75rem; }
         a { color: #2563eb; }
         html.dark a { color: #93c5fd; }
-        code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .85em; background: #f4f4f5; border: 1px solid #e4e4e7; border-radius: .25rem; padding: .05em .35em; }
+        code { font-family: var(--font-mono); font-size: .85em; background: #f4f4f5; border: 1px solid #e4e4e7; border-radius: .25rem; padding: .05em .35em; }
         html.dark code { background: #27272a; border-color: #3f3f46; }
         .lede { color: #52525b; font-size: .92rem; max-width: 78ch; margin: 0 0 1rem; }
         html.dark .lede { color: #a1a1aa; }
         .muted { color: #71717a; font-size: .85rem; }
         .keys { color: #52525b; font-size: .82rem; background: #f4f4f5; border: 1px solid #e4e4e7; border-radius: .375rem; padding: .5rem .75rem; margin: 0 0 .9rem; max-width: 100%; }
         html.dark .keys { background: #18181b; border-color: #27272a; color: #a1a1aa; }
-        .keys kbd { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .95em; background: #fff; border: 1px solid #d4d4d8; border-bottom-width: 2px; border-radius: .25rem; padding: 0 .3em; }
+        .keys kbd { font-family: var(--font-mono); font-size: .95em; background: #fff; border: 1px solid #d4d4d8; border-bottom-width: 2px; border-radius: .25rem; padding: 0 .3em; }
         html.dark .keys kbd { background: #27272a; border-color: #52525b; }
 
         nav.app-nav { background: #18181b; position: sticky; top: 0; z-index: 20; }
