@@ -34,19 +34,27 @@ use Livewire\Component;
  * definition, over the real 500-row resorts table.
  *
  * Covered here (the readonly half of the LaraGrid surface):
- *   data      — query(), authorize(), rowKey(), paginate(), singlePageUpTo(), defaultSort(),
- *               searchable() (declared columns + a dot-qualified DB column), filters()
- *               (SelectFilter + TernaryFilter), column-level filterable() header funnels,
- *               exportable(formats, fileName:, limit:), savedViews(), rowActivate()
- *   columns   — Serial, Integer, Text, Select, Checkbox, YesNo, Decimal, Date, Computed
- *               (+ ->html() badges and edit links), Readonly and Hidden (carried, unpainted),
- *               with label/width/minWidth/maxWidth/grow/align/format/frozen/visible/
- *               sortable/searchable/filterable/exportable(false)/resizable(false)
- *   actions   — row url() + call() actions with confirm/visible/authorize, bulk actions over
- *               checked rows, and toolbar actions
- *   layout    — columnGroups(), stickyHeader(), freezeColumns(), striped(), density(),
- *               theme(), height caps, rowClass(), cellClass(), persistWidths(), statusBar(),
- *               toolbar() tuning, emptyState(), footer aggregates
+ *   data        — query(), authorize(), rowKey(), paginate(), singlePageUpTo(), defaultSort(),
+ *                 searchable() (declared columns + a dot-qualified DB column), filters()
+ *                 (SelectFilter + TernaryFilter), column-level filterable() header funnels,
+ *                 exportable(formats, fileName:, limit:), rowActivate(navigate: true)
+ *   persistence — three different lifetimes that compose on one grid:
+ *                 persistQuery()  search / filters / sort / per-page, Laravel session, automatic
+ *                 persistWidths() column widths + hidden columns, localStorage, automatic
+ *                 savedViews()    all of the above by name, laragrid_views table, on demand
+ *   columns     — Serial, Integer, Text, Select, Checkbox, YesNo, Decimal, Date, Computed
+ *                 (+ ->html() badges and edit links), Readonly and Hidden (carried, unpainted),
+ *                 with label/width/minWidth/maxWidth/grow/align/format/frozen/sortable/
+ *                 searchable/filterable/exportable(false)/resizable(false) — and the two kinds
+ *                 of "not shown": hiddenByDefault() (the chooser can reveal it) vs
+ *                 visible(false) (operators never can)
+ *   actions     — row url() + call() actions with confirm/visible/authorize, bulk actions over
+ *                 checked rows, and toolbar actions
+ *   host seams  — refreshGrid() (lgrid:refresh: re-fetch the current view after an out-of-band
+ *                 change) and forgetGridQuery() (drop the persisted query on demand)
+ *   layout      — columnGroups(), stickyHeader(), freezeColumns(), striped(), density(),
+ *                 theme(), height caps, rowClass(), cellClass(), statusBar(), toolbar() tuning,
+ *                 emptyState(), footer aggregates
  *
  * Everything is declared in this class: no Blade wiring, no JavaScript, no build step.
  */
@@ -141,9 +149,14 @@ class ResortsIndex extends Component
                     // ReadonlyColumn: painted, never writable — the explicit way to carry a
                     // display-only value into an otherwise editable definition.
                     ReadonlyColumn::make('manager')->label('Manager')->width(130),
+                    // visible(false): a DEFINITION-level hidden column. It is not listed in the
+                    // column chooser, so no operator can ever reveal it — the right tool for a
+                    // value the host wants carried but never shown.
                     TextColumn::make('contact_phone')->label('Phone')->width(150)->visible(false),
-                    // Hidden by default; the operator restores it from the column chooser (▦).
-                    TextColumn::make('contact_email')->label('Email')->width(200)->visible(false),
+                    // hiddenByDefault(): starts unchecked in the column chooser (▦) but stays
+                    // available there — the optional column an operator may switch on. It is
+                    // also what ->persistWidths() and saved views remember as "hidden".
+                    TextColumn::make('contact_email')->label('Email')->width(200)->hiddenByDefault(),
                     YesNoColumn::make('is_visible')->label('Live?')->width(80)->align('center'),
                     YesNoColumn::make('gst_applicable')->label('GST?')->width(80)->align('center'),
                     CheckboxColumn::make('featured')->label('Featured')->width(90)->align('center'),
@@ -180,10 +193,22 @@ class ResortsIndex extends Component
                 // Named, per-user, server-persisted snapshots of search + filters + sort +
                 // per-page + column layout, recalled from the ❖ Views toolbar menu.
                 ->savedViews()
+                // Sticky filters: the CURRENT search, filters, sort and per-page survive for the
+                // rest of the session (Laravel session, key laragrid.query.resorts). Narrow the
+                // list, open a resort, come back — the list is still narrowed, and it was built
+                // narrowed ON THE SERVER, so there is no unfiltered first paint. The page number
+                // is deliberately not kept: a return lands on page 1 of your filtering. Stale
+                // values drop themselves (a filter value its own options no longer accept is
+                // skipped), and startClean() below shows the host-side forget.
+                ->persistQuery()
                 // Enter or double-click on a row opens it — the same gesture, one declaration.
+                // The URL is resolved server-side per row (null = no affordance). With
+                // navigate: true the grid itself follows it (Livewire Navigate when the app runs
+                // it, a full load otherwise); without it, activation only dispatches
+                // lgrid:activate and the host decides — a modal, a drill-down, a custom action.
                 ->rowActivate(fn (array $row): ?string => isset($row['id'])
                     ? route('resorts.edit', $row['id'])
-                    : null)
+                    : null, navigate: true)
                 ->actions([
                     Action::make('edit')->label('Edit')->icon('✎')
                         ->url(fn (array $row): string => route('resorts.edit', $row['id'])),
@@ -234,6 +259,31 @@ class ResortsIndex extends Component
                     : null)
                 ->emptyState('No resorts match this search.'),
         ];
+    }
+
+    /**
+     * Host seam #1 — drop the persisted query. ->persistQuery() remembers the operator's
+     * narrowing for the session; the events that should END it (a tenant switch, a "start
+     * clean" control) are the host's to recognise, so the trait exposes forgetGridQuery().
+     * A no-op on a grid that never declared ->persistQuery(). The full reload that follows
+     * paints the declared defaults again: no search, no filters, default sort, page 1.
+     */
+    public function startClean(): void
+    {
+        $this->forgetGridQuery('resorts');
+
+        $this->redirect(route('resorts.index'));
+    }
+
+    /**
+     * Host seam #2 — ask the grid to re-fetch its current view, cache-busted (lgrid:refresh).
+     * The CRUD companion for a modal create/edit that changed rows behind the grid's back:
+     * no remount, no wire:key tricks. (The grid's own call() actions already refetch after
+     * they run; this is for changes the grid did not make.)
+     */
+    public function refresh(): void
+    {
+        $this->refreshGrid('resorts');
     }
 
     public function render(): View

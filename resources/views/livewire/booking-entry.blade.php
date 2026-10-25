@@ -1,5 +1,5 @@
 <div>
-    <h1>Editable Livewire Datagrid — Inline Editing, Formula Columns &amp; Async Pickers</h1>
+    <h1>Editable Livewire Datagrid — Inline Editing, Formula Columns, Focus Modes &amp; Async Pickers</h1>
 
     <p class="lede">
         A spreadsheet-grade entry screen driven entirely from
@@ -16,6 +16,10 @@
         shows the tariff as muted meta ·
         pick two dates and <strong>Nights</strong> derives itself, then Base, GST and Amount
         recompute in the same round trip ·
+        notice <kbd>Enter</kbd> never stops on <strong>Guests</strong> — a
+        <code>FocusMode::Manual</code> column that defaults to 2; click it when a party is
+        bigger — nor on <strong>Booked</strong>, a <code>FocusMode::Never</code> column stamped
+        from a closure default ·
         tick <strong>Comp?</strong> and watch the rate zero itself and GST% grey out
         (<code>whenFilled</code> + <code>lockedWhen</code>, mirrored client-side, authoritative
         server-side) ·
@@ -24,11 +28,16 @@
         <kbd>Enter</kbd> on <strong>Note</strong> opens a host panel and resumes exactly where
         it left off ·
         <kbd>Y</kbd>/<kbd>N</kbd> answers Confirmed and advances in one keystroke ·
-        <kbd>F2</kbd> edits in place, <kbd>Delete</kbd> clears, <kbd>Shift</kbd>+<kbd>Delete</kbd>
-        deletes the row, <kbd>Insert</kbd> adds one, <kbd>Ctrl</kbd>+<kbd>D</kbd> fills down,
+        <kbd>Delete</kbd> clears, <kbd>F9</kbd> or <kbd>Shift</kbd>+<kbd>Delete</kbd>
+        deletes the row, <kbd>Insert</kbd> adds one, <kbd>F7</kbd> repeats the row above,
+        <kbd>Ctrl</kbd>+<kbd>D</kbd> fills down,
         <kbd>Ctrl</kbd>+<kbd>Z</kbd>/<kbd>Ctrl</kbd>+<kbd>Y</kbd> undo and redo,
         <kbd>Ctrl</kbd>+<kbd>C</kbd> copies TSV and a multi-row paste from Excel maps straight
         onto the cells ·
+        leave a required cell blank on a filled row and the footer's <strong>Review errors</strong>
+        control lists it (<kbd>Ctrl</kbd>+<kbd>E</kbd> jumps there) ·
+        reload the page mid-entry and a <strong>Restore / Discard</strong> bar brings the draft
+        back from IndexedDB (<code>persistDraft()</code>) ·
         pick <em>&lt;-- End of List --&gt;</em> on a blank row to finish — focus lands on Save.
     </p>
 
@@ -44,8 +53,14 @@
         <label for="remarks" class="muted">Remarks (Tab off the last cell lands here)</label>
         <input id="remarks" type="text" wire:model.blur="remarks" placeholder="Voucher remarks…">
 
-        <button type="button" data-save wire:click="save" class="btn-save">Save</button>
-        <span class="muted">Save captures the cleaned <code>gridRows()</code> output and reseeds the grid.</span>
+        {{-- No wire:click: the script below runs grid.commitAndSave('save') instead, so Save can
+             never race an open editor or a queued op, and mirrors the grid's canSave flag. --}}
+        <button type="button" data-save class="btn-save">Save</button>
+        <span class="muted">
+            Save runs <code>grid.commitAndSave('save')</code> — commit the editor, flush, await a
+            settled queue, then call the host — and is disabled while the grid reports
+            <code>canSave: false</code>. The cleaned <code>gridRows()</code> land in the tab below.
+        </span>
     </div>
 
     {{-- The ->opensPanel('line-notes') host modal. The grid keeps its active cell while this is
@@ -78,6 +93,11 @@
     <ul class="lede">
         <li><strong>Optimistic client, authoritative server</strong> — a typed op protocol,
             validation on both sides, and formula recomputation server-side after your hooks.</li>
+        <li><strong>Column focus modes</strong> — the ERP field behaviours as one chain:
+            <code>FocusMode::Always</code> (the default stop-here field),
+            <code>FocusMode::Manual</code> (skipped by <kbd>Enter</kbd>/<kbd>Tab</kbd>, editable on
+            click — Guests) and <code>FocusMode::Never</code> (skipped and locked — Booked), each
+            with a static or closure <code>default()</code> that seeds every fresh row.</li>
         <li><strong>Async picker with row enrichment</strong> —
             <code>SearchSelectColumn::optionsUsing()</code> streams options over an RPC and
             <code>onSelect()</code> pre-fills dependent cells in the same round trip.</li>
@@ -87,12 +107,19 @@
             <code>required()</code> and <code>readonly()</code> (static or per-row closures),
             <code>requiredWhen()</code>, <code>lockedWhen()</code> and
             <code>whenFilled()</code> sibling mirrors.</li>
-        <li><strong>Row lifecycle</strong> — <code>newRowUsing()</code> templates,
-            <code>autoAppend()</code>, <code>minRows()</code>, <code>padRows()</code>, and blank
-            trailing rows that are invisible to validation, totals and <code>gridRows()</code>.</li>
+        <li><strong>Row lifecycle</strong> — per-column <code>default()</code>s as the new-row
+            template, <code>autoAppend()</code>, <code>minRows()</code>, <code>padRows()</code>, and
+            blank trailing rows that are invisible to validation, totals and <code>gridRows()</code>.</li>
         <li><strong>The completion circuit</strong> — an end-of-list picker exit fires
             <code>lgrid:complete</code>, <code>onCompleteFocus()</code> carries focus to Save,
             and <code>focusOutTo()</code> separately repairs the plain Tab exit.</li>
+        <li><strong>The Save contract</strong> — <code>grid.commitAndSave('save')</code> instead
+            of a racing <code>wire:click</code>, a Save button that mirrors the bubbling
+            <code>lgrid:statechange</code> event's <code>canSave</code>, and the grid's own sync
+            bar (Saved · Syncing · Offline · Retry) and <strong>Review errors</strong> list.</li>
+        <li><strong>Draft recovery</strong> — <code>persistDraft()</code> keeps rows, queued ops,
+            errors and focus in IndexedDB until the save is confirmed; a reload offers
+            Restore / Discard, and every editable grid warns before a dirty navigation.</li>
         <li><strong>Host hand-offs</strong> — <code>opensPanel()</code> with
             <code>lgrid:panel</code> / <code>gridPanelDone()</code>, and
             <code>refreshesHost()</code> for live chrome outside the grid.</li>
@@ -121,6 +148,7 @@
             .entry-foot input#remarks { font: inherit; font-size: .85rem; padding: .4rem .6rem; border: 1px solid #d4d4d8; border-radius: .375rem; background: #fff; color: inherit; min-width: 16rem; }
             html.dark .entry-foot input#remarks { background: #18181b; border-color: #3f3f46; }
             .btn-save { font: inherit; padding: .45rem 1.4rem; border: 1px solid #18181b; border-radius: .375rem; background: #18181b; color: #fff; cursor: pointer; }
+            .btn-save:disabled { opacity: .45; cursor: default; }
             html.dark .btn-save { background: #e4e4e7; border-color: #e4e4e7; color: #18181b; }
 
             /* ->rowClass() / ->cellClass() targets. */
@@ -143,6 +171,9 @@
 
     @script
         <script>
+            const root = $wire.$el.querySelector('[data-lgrid]');
+            const save = $wire.$el.querySelector('[data-save]');
+
             // The grid hands its Enter off to us: open the host panel for the row it names.
             // Every exit path calls closePanel(), which fires gridPanelDone() and lets the
             // stashed advance run — so the cursor never gets stranded.
@@ -154,6 +185,30 @@
             // The completion signal, for anything beyond the packaged focus move.
             document.addEventListener('lgrid:complete', (event) => {
                 if (event.detail.grid === 'lines') console.debug('[demo] entry complete');
+            });
+
+            // The Save contract, half one: lgrid:statechange bubbles from the grid root once
+            // per settled state with {status, canSave, pending, modified, errors, …}. A
+            // declarative host button simply mirrors canSave — never clickable while an op is
+            // in flight, the grid is offline, or a validation error remains.
+            root.addEventListener('lgrid:statechange', (event) => {
+                if (event.detail.grid !== 'lines') return;
+                save.disabled = !event.detail.canSave;
+            });
+
+            // Half two: commitAndSave() commits the open editor, flushes, awaits a stable
+            // queue, then invokes $wire.save() and marks the draft saved. It refuses (throws)
+            // while errors, offline state or a terminal sync failure remain — the grid's own
+            // sync bar already says why, so the demo only logs the refusal.
+            save.addEventListener('click', async () => {
+                const grid = window.LaraGrid && window.LaraGrid.find(root);
+                if (!grid) return;
+
+                try {
+                    await grid.commitAndSave('save');
+                } catch (error) {
+                    console.warn('[demo] save refused:', error.message);
+                }
             });
         </script>
     @endscript

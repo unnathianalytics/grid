@@ -23,6 +23,13 @@
         <pre class="snippet"><code>composer require {{ Seo::PACKAGE }}</code></pre>
 
         <p class="muted">
+            For production, publish the prebuilt assets once per upgrade —
+            <code>php artisan vendor:publish --tag=laragrid-assets --force</code> — and the tags
+            point at static files instead of a Laravel boot; a copy left by an older release is
+            ignored, so old JavaScript is never paired with new PHP.
+        </p>
+
+        <p class="muted">
             PHP 8.1+ · Laravel 10 / 11 / 12 / 13 · Livewire 4.1+ (installed automatically) ·
             MIT licensed · <a href="{{ Seo::PACKAGIST }}" rel="noopener nofollow">Packagist</a> ·
             <a href="{{ Seo::REPO }}" rel="noopener nofollow">GitHub</a>
@@ -51,7 +58,9 @@
                     <td>Paints in-memory rows on a plain Blade page with no Livewire component.
                         <code>sortable()</code> columns sort client-side — stable, type-aware,
                         empties last. Built for computed report grids (trial balance, ageing)
-                        that can never be <code>query()</code>-backed.</td>
+                        that can never be <code>query()</code>-backed. A Livewire host may add
+                        trusted CSV/XLSX/PDF downloads with <code>exportRows()</code> without
+                        changing the mode.</td>
                     <td><a href="/reports">Display grid →</a></td>
                 </tr>
                 <tr>
@@ -60,8 +69,8 @@
                     <td>Sorting, global search, filters and pagination through a whitelisted
                         fail-closed pipeline. Page&nbsp;1 ships in the initial payload for a
                         zero-round-trip first paint; later pages stream over an RPC with an LRU
-                        cache and idle prefetch. Opt-in CSV/XLSX/PDF export and per-user saved
-                        views.</td>
+                        cache and idle prefetch. Opt-in CSV/XLSX/PDF export, per-user saved
+                        views, and session-sticky filters via <code>persistQuery()</code>.</td>
                     <td><a href="/resorts">Readonly grid →</a></td>
                 </tr>
                 <tr>
@@ -99,7 +108,9 @@
             <p><code>exportable()</code> downloads the operator's current view — active sort,
                search and filters over the whole filtered set. All three writers are
                dependency-free: BOM-ed UTF-8 CSV, native SpreadsheetML XLSX with typed number
-               cells, and a native A4 PDF writer. Register your own for anything else.</p>
+               cells, and a native A4 PDF writer. In-memory reports export too, through a
+               trusted <code>exportRows()</code> resolver. Register your own writer for
+               anything else.</p>
         </article>
         <article>
             <h3>Per-user saved views</h3>
@@ -107,6 +118,14 @@
                per-page + column layout, server-side and scoped to the authenticated operator.
                Views are sanitized against the grid's declared surface, so one operator can
                never see, apply or delete another's.</p>
+        </article>
+        <article>
+            <h3>Sticky filters and draft recovery</h3>
+            <p><code>persistQuery()</code> keeps the current search, filters, sort and per-page
+               for the session — read on the server before page 1 is built, so there is no
+               unfiltered first paint. <code>persistDraft()</code> keeps an editable grid's
+               rows, queued ops and errors in IndexedDB until the save is confirmed; a reload
+               offers Restore / Discard.</p>
         </article>
         <article>
             <h3>Inline editing with a real contract</h3>
@@ -125,7 +144,23 @@
             <p><code>SearchSelectColumn</code> streams options over an RPC and
                <code>onSelect()</code> pre-fills dependent cells server-side; formula columns
                recompute after the hook, so one pick updates the whole row in a single round
-               trip.</p>
+               trip. <code>optionsDependOn()</code> lets the option list depend on sibling
+               cells without the client ever reusing one row's list for another.</p>
+        </article>
+        <article>
+            <h3>Column focus modes, the ERP way</h3>
+            <p><code>focusMode(FocusMode::Always | Manual | Never, default: …)</code> — the
+               Variable, Semi-Variable and Fixed fields of voucher entry. Manual columns are
+               skipped by Enter and Tab but edit on click; Never columns are skipped and locked;
+               a static or closure <code>default()</code> seeds every fresh row.</p>
+        </article>
+        <article>
+            <h3>A Save button that cannot race the grid</h3>
+            <p><code>grid.commitAndSave('save')</code> commits the open editor, flushes, waits
+               for every op to be acknowledged, then calls your Livewire method; the bubbling
+               <code>lgrid:statechange</code> event carries <code>canSave</code> for a
+               declarative button, and the grid's own sync bar reports Syncing, Offline and
+               Retry states.</p>
         </article>
         <article>
             <h3>Undo, redo and bulk paste</h3>
@@ -175,17 +210,17 @@
             <tbody>
                 <tr><td>Arrows · Tab · Home · End · PageUp / PageDown · Ctrl+edges</td><td>navigate</td></tr>
                 <tr><td>Shift + movement · Ctrl+A</td><td>extend the selection / select all</td></tr>
-                <tr><td>Ctrl+C</td><td>copy the selection as TSV — pastes into Excel and round-trips back</td></tr>
-                <tr><td>Type · F2 · double-click</td><td>overwrite or edit a cell</td></tr>
+                <tr><td>Ctrl+C</td><td>copy the selection as TSV — pastes into Excel and round-trips back; after Ctrl+A the copy carries the column headers, and a pasted header row is skipped</td></tr>
+                <tr><td>Type · double-click</td><td>overwrite or edit a cell — <code>FocusMode::Manual</code> columns take the click but are skipped by Enter and Tab</td></tr>
                 <tr><td>Space</td><td>toggle a checkbox or Yes/No cell in place</td></tr>
                 <tr><td>Y / N</td><td>answer a Yes/No cell <em>and advance</em> — one keystroke per row</td></tr>
-                <tr><td>Enter</td><td>commit and advance — serpentine in <code>entry</code>, down in <code>excel</code></td></tr>
+                <tr><td>Enter</td><td>commit and advance — serpentine in <code>entry</code>, down in <code>excel</code>; on a readonly grid it activates the row</td></tr>
                 <tr><td>Delete</td><td>clear the selected cells</td></tr>
-                <tr><td>Shift+Delete · F8</td><td>delete the row (guarded by <code>minRows</code>)</td></tr>
-                <tr><td>F9 · Shift+F9</td><td>display grids: temporarily hide a row / restore all — footers recompute</td></tr>
-                <tr><td>Insert · Ctrl+D</td><td>insert a row · fill down</td></tr>
+                <tr><td>F9 · Shift+Delete</td><td>editable grids: delete the row (guarded by <code>minRows</code>)</td></tr>
+                <tr><td>F9 · Shift+F9</td><td>readonly and display grids: temporarily hide a row / restore all — footers recompute</td></tr>
+                <tr><td>Insert · F7 · Ctrl+D</td><td>insert a row · repeat the row above · fill down</td></tr>
                 <tr><td>Ctrl+Z · Ctrl+Y / Ctrl+Shift+Z</td><td>undo · redo (editable grids)</td></tr>
-                <tr><td>Ctrl+E</td><td>jump to the first error</td></tr>
+                <tr><td>Ctrl+E</td><td>focus a validation error — the footer's Review errors control lists every message</td></tr>
                 <tr><td>ContextMenu · Shift+F10</td><td>open the row's actions menu</td></tr>
                 <tr><td>Escape</td><td>clear the selection / cancel the edit</td></tr>
             </tbody>

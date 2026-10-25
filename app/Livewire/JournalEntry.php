@@ -7,6 +7,7 @@ namespace App\Livewire;
 use Illuminate\Contracts\View\View;
 use LaraGrid\Aggregate;
 use LaraGrid\Columns\DecimalColumn;
+use LaraGrid\Columns\FocusMode;
 use LaraGrid\Columns\HiddenColumn;
 use LaraGrid\Columns\SearchSelectColumn;
 use LaraGrid\Columns\SelectColumn;
@@ -31,13 +32,21 @@ use Livewire\Component;
  * operator accepts it with Enter or overtypes it.
  *
  * Also covered here, and nowhere else in the demo:
+ *   · a FocusMode::Manual column — the ERP "semi-variable" field: Enter and Tab skip it, a
+ *     mouse click still edits it (the Group selector that narrows the ledger picker)
+ *   · row-dependent picker options — optionsUsing(fn ($term, $row)) reads the row's Group,
+ *     and optionsDependOn(['group']) keys the client's option cache by it, so one row's
+ *     list is never reused for a row on a different group
  *   · SyncPolicy::PerRow — ops batch until the cursor leaves the row, instead of per cell
  *   · a mutually exclusive Dr / Cr column pair under a D/C selector, declared with
  *     whenFilled() mirrors + lockedWhen() masks and reconciled by an authoritative
  *     afterCellChange() hook (typed side wins)
  *   · optionsUsing() over a plain PHP array — an async picker needs no database
+ *   · newRowUsing() as the grid-level row template (the booking grid uses per-column
+ *     ->default() instead — both seed the same blank-row template)
  *   · a Post button that only enables on the very commit that completes the voucher, which
- *     onCompleteFocus() still focuses thanks to its retrying selector lookup
+ *     onCompleteFocus() still focuses thanks to its retrying selector lookup, and which posts
+ *     through grid.commitAndSave('post') so it can never race an open editor
  *
  * Nothing is written to the database — Post captures the cleaned rows and shows them.
  */
@@ -46,7 +55,7 @@ class JournalEntry extends Component
 {
     use WithLaraGrid;
 
-    /** A miniature chart of accounts — the picker's option source. */
+    /** A miniature chart of accounts — the picker's option source. The leading digit is the group. */
     private const LEDGERS = [
         '1001' => 'Cash in Hand',
         '1002' => 'Bank — Current A/c',
@@ -64,6 +73,15 @@ class JournalEntry extends Component
         '5003' => 'Electricity & Water',
         '5004' => 'Repairs & Maintenance',
         '5005' => 'Commission — Travel Agents',
+    ];
+
+    /** Ledger groups, keyed by the account code's leading digit. */
+    private const GROUPS = [
+        '1' => 'Assets',
+        '2' => 'Liabilities',
+        '3' => 'Capital',
+        '4' => 'Income',
+        '5' => 'Expenses',
     ];
 
     private const SIDES = ['D' => 'Dr', 'C' => 'Cr'];
@@ -95,6 +113,9 @@ class JournalEntry extends Component
                 ->rowsFrom('entries')
                 ->authorize(fn (): bool => true)
                 ->defaultRows(4)
+                // The grid-level new-row template. Column ->default()s are applied first, then
+                // this overlay — and BOTH are part of the blank-row template, so a row that
+                // still reads 'D' here holds no operator data.
                 ->newRowUsing(fn (): array => ['dc' => 'D'])
                 ->minRows(2)
                 ->autoAppend()
@@ -116,9 +137,21 @@ class JournalEntry extends Component
                 ->refreshesHost(['dr', 'cr'])
                 ->columns([
                     SerialColumn::make(),
-                    // An async picker needs no database: optionsUsing() may return anything.
+                    // FocusMode::Manual — the "semi-variable" field of voucher entry: serpentine
+                    // Enter and Tab never stop here, a mouse click still opens it. An operator
+                    // who knows the ledger name flies past; one who doesn't clicks it to narrow
+                    // the picker on the next cell. (FocusMode::Never would also lock it; the
+                    // default, FocusMode::Always, is the ordinary stop-here field.)
+                    SelectColumn::make('group')->label('Group')->options(self::GROUPS)
+                        ->focusMode(FocusMode::Manual)
+                        ->width(110),
+                    // An async picker needs no database: optionsUsing() may return anything. It
+                    // also receives the ROW, so the list can depend on a sibling cell — here the
+                    // optional Group narrows the chart of accounts.
                     SearchSelectColumn::make('ledger')->label('Particulars')
-                        ->optionsUsing(fn (string $term): array => collect(self::LEDGERS)
+                        ->optionsUsing(fn (string $term, array $row): array => collect(self::LEDGERS)
+                            ->filter(fn (string $name, string $code): bool => ($row['group'] ?? null) === null
+                                || str_starts_with($code, (string) $row['group']))
                             ->filter(fn (string $name, string $code): bool => $term === ''
                                 || str_contains(strtolower($name), strtolower($term))
                                 || str_starts_with($code, $term))
@@ -128,10 +161,18 @@ class JournalEntry extends Component
                                 'meta' => $code,
                             ])
                             ->values()->all())
+                        // Declares the dependency: the client caches options per typed term, and
+                        // this keys that cache by the row's group too — so the list fetched for
+                        // an Expenses row is never reused for an Income row. The server still
+                        // re-runs the closure with the row, so the filtering stays authoritative.
+                        ->optionsDependOn(['group'])
                         ->onSelect(function (RowContext $row, mixed $value): void {
                             // Enrichment: carry the account code alongside the picked id, so the
-                            // posted payload needs no second lookup.
-                            $row->set('code', $value === null ? null : (string) $value);
+                            // posted payload needs no second lookup — and fill in the group the
+                            // pick belongs to, so the Manual column reads right even if skipped.
+                            $code = $value === null ? null : (string) $value;
+                            $row->set('code', $code);
+                            $row->set('group', $code === null ? null : substr($code, 0, 1));
                         })
                         ->required()
                         ->minChars(0)->debounce(200)->limit(20)
@@ -161,8 +202,20 @@ class JournalEntry extends Component
                 ])
                 // Typed side wins: whichever amount the operator actually typed sets the
                 // selector and blanks the opposite cell. Flipping the selector by hand clears
-                // the amount the new side no longer owns.
+                // the amount the new side no longer owns. Changing the group drops a ledger
+                // that no longer belongs to it.
                 ->afterCellChange(function (RowContext $row, string $column): void {
+                    if ($column === 'group') {
+                        $ledger = (string) ($row->get('ledger') ?? '');
+                        $group = $row->get('group');
+
+                        if ($ledger !== '' && $group !== null && ! str_starts_with($ledger, (string) $group)) {
+                            $row->set('ledger', null)->set('code', null)->setLabel('ledger', '');
+                        }
+
+                        return;
+                    }
+
                     if ($column === 'dr' && $row->get('dr') !== null && $row->get('dr') !== '') {
                         $row->set('dc', 'D')->set('cr', null);
 
@@ -215,6 +268,10 @@ class JournalEntry extends Component
         return $debits > 0 && abs($this->difference) < 0.005;
     }
 
+    /**
+     * Invoked by grid.commitAndSave('post') — i.e. only after the open editor has committed and
+     * every queued op is acknowledged — never by a bare wire:click racing the grid.
+     */
     public function post(): void
     {
         if (! $this->isBalanced) {

@@ -12,6 +12,7 @@ use LaraGrid\ColumnGroup;
 use LaraGrid\Columns\CheckboxColumn;
 use LaraGrid\Columns\DateColumn;
 use LaraGrid\Columns\DecimalColumn;
+use LaraGrid\Columns\FocusMode;
 use LaraGrid\Columns\FormulaColumn;
 use LaraGrid\Columns\HiddenColumn;
 use LaraGrid\Columns\IntegerColumn;
@@ -34,17 +35,23 @@ use Livewire\Component;
  * the whole editing machinery in one definition.
  *
  * Covered here:
- *   modes/rows  — editable(), rowsFrom(), defaultRows(), newRowUsing(), minRows(), padRows(),
- *                 autoAppend(), sync(SyncPolicy::PerCell), gridMountRows()/gridRows()/reseedGrid()
+ *   modes/rows  — editable(), rowsFrom(), defaultRows(), per-column default() as the new-row
+ *                 template, minRows(), padRows(), autoAppend(), sync(SyncPolicy::PerCell),
+ *                 persistDraft() (IndexedDB crash/reload recovery),
+ *                 gridMountRows()/gridRows()/reseedGrid()
  *   columns     — Serial, SearchSelect (async options + meta + onSelect enrichment +
  *                 endOfListOption), Select, Text (maxLength/upper), Integer, Decimal, Date,
  *                 Checkbox, YesNo, Formula (chained: base → tax → amount), Readonly and a
  *                 writable Hidden carried id
+ *   focus modes — the ERP field behaviours: FocusMode::Always (the default stop-here field),
+ *                 FocusMode::Manual (Enter/Tab skip it, a click edits it — Guests) and
+ *                 FocusMode::Never (skipped and locked, filled from a closure default — Booked)
  *   rules       — rules(), required(), required(fn), readonly(fn), requiredWhen(), lockedWhen(),
  *                 whenFilled() sibling mirrors
  *   hooks       — onSelect(), afterCellChange() (derived nights), afterRowRemove()
  *   flow        — focusOnMount(), focusOutTo(), onCompleteFocus() + lgrid:complete,
- *                 opensPanel() + lgrid:panel / gridPanelDone(), refreshesHost()
+ *                 opensPanel() + lgrid:panel / gridPanelDone(), refreshesHost(), and the
+ *                 host Save contract: grid.commitAndSave('save') + lgrid:statechange
  *   layout      — columnGroups(), stickyHeader(), freezeColumns(), density(), theme(),
  *                 statusBar(), persistWidths(), rowClass(), cellClass(), footer aggregates
  *
@@ -107,22 +114,25 @@ class BookingEntry extends Component
                 // Demo app has no auth — permit openly. Gate with a policy in real apps.
                 ->authorize(fn (): bool => true)
                 ->defaultRows(3)
-                // The new-row TEMPLATE: every declared column null, overlaid with these. The same
-                // template builds seeded rows, Insert rows, auto-appended rows and paste rows — so
-                // a row nobody touched still counts as BLANK (factory defaults are not operator
-                // data) and stays exempt from validation, totals and gridRows().
-                ->newRowUsing(fn (): array => [
-                    'guests' => 2,
-                    'plan' => 'CP',
-                    'taxStatus' => 'taxable',
-                    'gstPct' => '12.00',
-                ])
+                // The new-row TEMPLATE is built from the columns: every declared column null,
+                // then each column's ->default() (see guests / plan / taxStatus / gstPct /
+                // bookedOn below). The same template builds seeded rows, Insert rows,
+                // auto-appended rows and paste rows — so a row nobody touched still counts as
+                // BLANK (defaults are not operator data) and stays exempt from validation,
+                // totals and gridRows(). ->newRowUsing() is the grid-level alternative — the
+                // voucher grid uses that one.
                 ->minRows(1)
                 ->autoAppend()          // Enter past the last cell grows the grid
                 ->padRows(3)            // paint empty filler rows so the box never looks cropped
                 // One op per committed cell — the default. PerRow batches a row's ops until the
                 // cursor leaves it; Deferred holds everything until the host flushes.
                 ->sync(SyncPolicy::PerCell)
+                // Crash / reload recovery: rows, queued ops, errors and focus go to IndexedDB
+                // under this key; a reload offers Restore / Discard, and the draft is kept until
+                // the host save is confirmed (commitAndSave → markSaved, or the reseed in save()).
+                // Opt-in because it stores row data in the browser — scope the key by tenant,
+                // operator and document on shared machines.
+                ->persistDraft('local', 'laragrid-demo:booking')
                 ->keymap('entry')       // serpentine Enter flow; 'excel' = Enter down, Tab right
                 ->focusOnMount()
                 ->focusOutTo('#remarks')        // Tab off the last cell → the Remarks field
@@ -181,6 +191,12 @@ class BookingEntry extends Component
                         ->minWidth(180)->grow(),
                     // Written by the hook above, never by the operator.
                     ReadonlyColumn::make('city')->label('City')->width(110),
+                    // FocusMode::Never — the ERP "fixed" field: keyboard navigation skips it, it
+                    // is locked, and a Closure default stamps it on every fresh row (seeded,
+                    // auto-appended, inserted or pasted). The classic voucher-date cell.
+                    DateColumn::make('bookedOn')->label('Booked')->width(105)
+                        ->displayFormat('d-M-Y')
+                        ->focusMode(FocusMode::Never, default: fn (): string => now()->toDateString()),
                     DateColumn::make('fromDate')->label('From')->width(115)
                         ->displayFormat('d-M-Y')
                         ->required(),
@@ -192,10 +208,16 @@ class BookingEntry extends Component
                     IntegerColumn::make('nights')->label('Nights')->width(80)->align('right')
                         ->rules(['integer', 'min:1', 'max:60'])
                         ->required(),
+                    // FocusMode::Manual — the ERP "semi-variable" field: Enter and Tab skip it
+                    // (the default of 2 is right most of the time), a mouse click still edits
+                    // it. The default seeds the new-row template, so an untouched row stays
+                    // blank and required() is already satisfied on it.
                     IntegerColumn::make('guests')->label('Guests')->width(80)->align('right')
                         ->rules(['integer', 'min:1', 'max:12'])
+                        ->focusMode(FocusMode::Manual, default: 2)
                         ->required(),
                     SelectColumn::make('plan')->label('Meal Plan')->options(self::PLANS)
+                        ->default('CP')
                         ->width(150)->required(),
                     DecimalColumn::make('rate')->label('Rate / night')->scale(2)->width(120)
                         ->align('right')->format('number', ['scale' => 2])
@@ -213,12 +235,14 @@ class BookingEntry extends Component
                     FormulaColumn::make('base')->label('Base')->width(110)->align('right')
                         ->formula('round(nights * rate, 2)'),
                     SelectColumn::make('taxStatus')->label('Tax')->options(self::TAX_STATUS)
+                        ->default('taxable')
                         ->width(110)->required(),
                     // lockedWhen(): the client can pre-evaluate a SIBLING-keyed lock, so the
                     // editor refuses these cells, serpentine navigation skips them, and they
                     // paint muted — instantly, with no server round trip.
                     DecimalColumn::make('gstPct')->label('GST %')->scale(2)->width(90)
                         ->align('right')
+                        ->default('12.00')
                         ->rules(['numeric', 'min:0', 'max:28'])
                         ->lockedWhen('taxStatus', 'exempt')
                         ->requiredWhen('taxStatus', 'taxable'),
@@ -289,7 +313,7 @@ class BookingEntry extends Component
                     // validation flags the row instead of silently keeping a stale count.
                     $row->set('nights', $nights >= 1 ? $nights : null);
                 })
-                // Fires after a row is deleted (Shift+Delete / F8 / the row menu): drop any
+                // Fires after a row is deleted (F9 / Shift+Delete / the row menu): drop any
                 // host-side extras the panel captured for a line that no longer exists.
                 ->afterRowRemove(function (): void {
                     $live = array_column($this->lines, '_k');
@@ -345,6 +369,10 @@ class BookingEntry extends Component
      * "Save": capture the cleaned rows (blank trailing rows stripped, client bookkeeping
      * removed), reset the grid to fresh seeded lines, and push the reset to the client
      * (reseedGrid — the mandatory step after any out-of-band rows mutation).
+     *
+     * Invoked by grid.commitAndSave('save') from the page — i.e. only after the open editor
+     * has committed and every queued op is acknowledged — never by a bare wire:click that
+     * could race the grid. The reseed is also what retires the persisted draft.
      */
     public function save(): void
     {

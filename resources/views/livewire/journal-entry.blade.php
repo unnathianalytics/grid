@@ -12,6 +12,11 @@
     <p class="keys">
         <strong>Try it:</strong>
         type a few letters of an account (or its code) in <strong>Particulars</strong> ·
+        <kbd>Enter</kbd> skips straight over <strong>Group</strong> — it is a
+        <code>FocusMode::Manual</code> column — but click it and pick <em>Expenses</em>, and the
+        Particulars list on that row narrows to the 5xxx accounts
+        (<code>optionsUsing(fn ($term, $row))</code> + <code>optionsDependOn(['group'])</code>);
+        picking a ledger fills its group back in ·
         type an amount in <strong>Debit</strong> and the Dr/Cr selector flips to Dr while Credit
         blanks itself — and vice versa (<code>whenFilled</code> mirrors it instantly,
         <code>afterCellChange</code> makes it authoritative) ·
@@ -20,7 +25,8 @@
         leave the voucher out of balance, land on the empty amount cell of the deficit side, and
         the balancing figure is <strong>pre-filled</strong> — accept it with <kbd>Enter</kbd> or
         overtype it ·
-        once it balances, one more <kbd>Enter</kbd> posts the voucher.
+        once it balances, one more <kbd>Enter</kbd> lands on Post, and <kbd>Enter</kbd> again
+        posts the voucher.
     </p>
 
     <div class="voucher-head">
@@ -43,15 +49,23 @@
         <label for="narration" class="muted">Narration (Tab off the last cell lands here)</label>
         <input id="narration" type="text" wire:model.blur="narration" placeholder="Being…">
 
-        <button type="button" data-post wire:click="post" class="btn-save"
+        {{-- Disabled server-side until the voucher balances (re-rendered by refreshesHost);
+             the click runs grid.commitAndSave('post') — see the script below. --}}
+        <button type="button" data-post class="btn-save"
                 @disabled(! $this->isBalanced)>Post Voucher</button>
-        <span class="muted">Enabled only while the voucher balances.</span>
+        <span class="muted">Enabled only while the voucher balances; posts through <code>commitAndSave()</code>.</span>
     </div>
 
     <h2>What this page demonstrates</h2>
     <ul class="lede">
         <li><strong><code>completeWhenBalanced('dr', 'cr')</code></strong> — the balancing guard,
             plus its autofill of the deficit side through the normal commit pipeline.</li>
+        <li><strong>A <code>FocusMode::Manual</code> column</strong> — the ERP "semi-variable"
+            field: serpentine navigation never stops on Group, a click still edits it.</li>
+        <li><strong>Row-dependent picker options</strong> — <code>optionsUsing()</code> receives
+            the row and filters by its Group; <code>optionsDependOn(['group'])</code> keys the
+            client's per-term option cache by it, so one row's list is never reused for a row on
+            a different group, while the server still re-runs the closure authoritatively.</li>
         <li><strong>A mutually exclusive column pair</strong> — <code>whenFilled()</code> client
             mirrors, <code>lockedWhen()</code> navigation masks, and an
             <code>afterCellChange()</code> hook that makes "typed side wins" authoritative.</li>
@@ -59,8 +73,12 @@
             the row instead of flushing per cell.</li>
         <li><strong>An async picker with no database</strong> — <code>optionsUsing()</code> over
             a plain PHP array, with the account code painted as muted option meta.</li>
+        <li><strong><code>newRowUsing()</code></strong> as the grid-level row template, next to
+            the booking grid's per-column <code>default()</code>s — both seed the same blank-row
+            template.</li>
         <li><strong>The retrying focus target</strong> — <code>onCompleteFocus()</code> lands on
-            a Post button that only enables on the commit that completed the voucher.</li>
+            a Post button that only enables on the commit that completed the voucher, and the
+            button posts through <code>grid.commitAndSave('post')</code>.</li>
     </ul>
 
     <h2 id="source">The whole voucher, in one class</h2>
@@ -98,4 +116,22 @@
             .row-cr .lgrid-cell:first-child { box-shadow: inset 3px 0 0 #0ea5e9; }
         </style>
     @endpush
+
+    @script
+        <script>
+            // Post goes through the grid, not around it: commitAndSave() commits any open
+            // editor, flushes the PerRow batch, waits for every op to be acknowledged, and only
+            // then invokes $wire.post(). It refuses while a validation error remains.
+            $wire.$el.querySelector('[data-post]').addEventListener('click', async () => {
+                const grid = window.LaraGrid && window.LaraGrid.find($wire.$el.querySelector('[data-lgrid]'));
+                if (!grid) return;
+
+                try {
+                    await grid.commitAndSave('post');
+                } catch (error) {
+                    console.warn('[demo] post refused:', error.message);
+                }
+            });
+        </script>
+    @endscript
 </div>

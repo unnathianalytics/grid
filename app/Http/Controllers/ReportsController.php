@@ -17,11 +17,10 @@ use LaraGrid\Columns\SerialColumn;
 use LaraGrid\Columns\TextColumn;
 use LaraGrid\Grid;
 use LaraGrid\GridDensity;
-use LaraGrid\Support\CellHtml;
 
 /**
  * The DISPLAY-MODE showcase — LaraGrid on a plain Blade page with no Livewire component
- * anywhere in sight.
+ * behind the main grid.
  *
  * A display grid declares neither ->query() nor ->editable(): rows are handed to the tag
  * (<x-laragrid :grid :rows>) and painted as-is, with the same keyboard model, selection
@@ -36,32 +35,23 @@ use LaraGrid\Support\CellHtml;
  *     over what is left — the what-if view an accountant actually wants
  *   · only url() row actions are allowed: an in-memory grid has no authoritative server-side
  *     row source, so call() and bulk actions are refused at build time
+ *   · ->savedViews() and ->persistQuery() are refused too (their state IS a query pipeline's
+ *     input), and ->exportable() needs a trusted server row source — either a ->query(), or
+ *     ->exportRows() on a Livewire host. The second grid on this page, the nested
+ *     App\Livewire\AgeingReport component, is exactly that.
  *
  * This page also carries the EXTENSION demo: a custom column type (RatingColumn), a custom
  * painter, a custom display format ('inr') and a custom parse kind ('stars') — PHP halves in
- * App\Grid\* and App\Providers\AppServiceProvider, JavaScript twins in the view.
+ * App\Grid\* and App\Providers\AppServiceProvider, JavaScript twins in
+ * resources/views/partials/laragrid-extensions.blade.php.
  */
 class ReportsController extends Controller
 {
-    /** A small in-memory table — rows that exist nowhere in the database. */
-    private const AGEING = [
-        ['bucket' => 'Not due', 'invoices' => 128, 'amount' => 4128500, 'weight' => 0],
-        ['bucket' => '1 – 30 days', 'invoices' => 74, 'amount' => 2260750, 'weight' => 15],
-        ['bucket' => '31 – 60 days', 'invoices' => 41, 'amount' => 1189300, 'weight' => 35],
-        ['bucket' => '61 – 90 days', 'invoices' => 22, 'amount' => 742900, 'weight' => 60],
-        ['bucket' => '91 – 180 days', 'invoices' => 13, 'amount' => 415600, 'weight' => 80],
-        ['bucket' => 'Over 180 days', 'invoices' => 7, 'amount' => 233450, 'weight' => 100],
-    ];
-
     public function index(): View
     {
-        $cityRows = $this->cityRows();
-
         return view('reports.index', [
             'cityGrid' => $this->cityGrid(),
-            'cityRows' => $cityRows,
-            'ageingGrid' => $this->ageingGrid(),
-            'ageingRows' => $this->ageingRows(),
+            'cityRows' => $this->cityRows(),
         ]);
     }
 
@@ -110,8 +100,9 @@ class ReportsController extends Controller
     {
         return Grid::make('city-report')
             // No authorize() is required in display mode: there is no server data surface to
-            // gate — the host already decided what rows to hand over. (For the same reason
-            // ->exportable() and ->savedViews() are refused here: both need a query() grid.)
+            // gate — the host already decided what rows to hand over. (That is also why
+            // ->exportable() is refused here without ->exportRows(): a download needs a
+            // server-side row source the grid can re-authorize, which Blade rows are not.)
             ->defaultSort('city')
             ->columnGroups([
                 ColumnGroup::make('Inventory', ['properties', 'rooms']),
@@ -164,53 +155,5 @@ class ReportsController extends Controller
             ->persistWidths()
             ->maxHeight('60vh')
             ->emptyState('No cities to report on.');
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function ageingRows(): array
-    {
-        return array_map(fn (array $row): array => $row + [
-            'provision' => (int) round($row['amount'] * $row['weight'] / 100),
-        ], self::AGEING);
-    }
-
-    /**
-     * The what-if grid: hand-built rows, no toolbar, a fixed height — and F9 as the point.
-     */
-    private function ageingGrid(): Grid
-    {
-        return Grid::make('ageing')
-            ->toolbar(false)            // no search, no filters, no chooser — bare chrome
-            ->height('260px')           // a fixed box rather than a content-sized one
-            ->columns([
-                SerialColumn::make(),
-                TextColumn::make('bucket')->label('Ageing bucket')->sortable()->minWidth(150)->grow(),
-                IntegerColumn::make('invoices')->label('Invoices')->sortable()
-                    ->width(100)->align('right')->format('number'),
-                IntegerColumn::make('amount')->label('Outstanding')->sortable()
-                    ->width(150)->align('right')->format('inr'),
-                IntegerColumn::make('weight')->label('Provision %')->sortable()
-                    ->width(110)->align('right'),
-                IntegerColumn::make('provision')->label('Provision')->sortable()
-                    ->width(140)->align('right')->format('inr'),
-                ComputedColumn::make('health')->label('Health')->html()->width(100)->align('center')
-                    ->state(fn (array $row): string => match (true) {
-                        ($row['weight'] ?? 0) >= 60 => CellHtml::badge('red', 'At risk'),
-                        ($row['weight'] ?? 0) >= 15 => CellHtml::badge('amber', 'Watch'),
-                        default => CellHtml::badge('green', 'Current'),
-                    }),
-            ])
-            ->footer([
-                Aggregate::sum('invoices')->format('number'),
-                Aggregate::sum('amount')->format('inr'),
-                Aggregate::sum('provision')->format('inr'),
-            ])
-            ->density(GridDensity::Comfortable)
-            ->theme('amber')
-            ->striped()
-            ->statusBar()
-            ->emptyState('Nothing outstanding.');
     }
 }
